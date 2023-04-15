@@ -7,7 +7,10 @@ export default () => ({
     principals: new Map<string, string>([
       ['as@insat', cryptoService.genKey(32)],
       ['tgs@insat', cryptoService.genKey(32)],
-      ['service_1@insat', "REDACTED_SERVICE_KEY"],
+      [
+        'service_1@insat',
+        'REDACTED_SERVICE_KEY',
+      ],
       ['service_2@insat', cryptoService.genKey(32)],
     ]),
   },
