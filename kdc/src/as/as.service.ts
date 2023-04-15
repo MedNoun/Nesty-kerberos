@@ -1,22 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { Request1Dto } from './dto/request1.dto';
 import { CryptoService } from 'src/common/crypto/crypto.service';
 import { ConfigService } from '@nestjs/config';
 import { Challenge, Payload } from 'src/common/types/response';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 
 @Injectable()
 export class AsService {
   constructor(
     private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
+    @Inject(CACHE_MANAGER) private cacheService: Cache,
   ) {}
   async authenticate(request: Request1Dto, ip: string, realm: string) {
-    const user = { mednoun: this.cryptoService.genKey(32) };
-    const serviceKey = this.configService
-      .get<Map<string, string>>([realm, 'principals'].join('.'))
-      .get(request.serviceName);
+    const userKey = await this.cacheService.get<string>(
+      request.username + '@' + realm,
+    );
+    const serviceKey = await this.cacheService.get<string>(
+      request.serviceName + '@' + realm,
+    );
     // look for user in the keytab or database
-    if (user && serviceKey) {
+    if (userKey && serviceKey) {
       const challenge = new Challenge(
         request.serviceName,
         new Date().getTime(),
@@ -28,12 +33,12 @@ export class AsService {
       );
       return new Payload(
         challenge,
-        'mednoun',
+        request.username,
         realm,
-        'tgs@' + realm,
+        'tgs',
         ip,
         challenge.lifetime,
-        user['mednoun'],
+        userKey,
       );
     }
   }

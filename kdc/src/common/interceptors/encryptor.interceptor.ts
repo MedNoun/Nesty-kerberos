@@ -1,6 +1,7 @@
 import {
   CallHandler,
   ExecutionContext,
+  Inject,
   Injectable,
   NestInterceptor,
   NotFoundException,
@@ -16,6 +17,8 @@ import {
   Ticket,
 } from 'src/common/types/response';
 import { Request2Dto } from 'src/tgs/dto/request2.dto';
+import { Cache } from 'cache-manager';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 
 class IncomingRequest {
   tgt: Encryption;
@@ -31,22 +34,23 @@ export class EncryptorInterceptor implements NestInterceptor {
   constructor(
     private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
+    @Inject(CACHE_MANAGER) private cacheService: Cache,
   ) {}
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  async intercept(context: ExecutionContext, next: CallHandler) {
+    // *********** format the request ************ //
     const request: Request = context.switchToHttp().getRequest();
     if (request.originalUrl.includes('tgs')) {
       const { realm } = request.params;
       const payload: IncomingRequest = request.body;
       const newReq: Request2Dto = new Request2Dto();
-      const serviceKey = this.configService
-        .get<Map<string, string>>([realm, 'principals'].join('.'))
-        .get(payload.request.id);
+      const serviceKey = await this.cacheService.get<string>(
+        payload.request.id + '@' + realm,
+      );
+
       if (!serviceKey) {
         throw new NotFoundException('The service required not found');
       }
-      const privateKey = this.configService
-        .get<Map<string, string>>([realm, 'principals'].join('.'))
-        .get('tgs@' + realm);
+      const privateKey = await this.cacheService.get<string>('tgs@' + realm);
 
       newReq.tgt = JSON.parse(
         this.cryptoService.decrypt(
@@ -56,6 +60,7 @@ export class EncryptorInterceptor implements NestInterceptor {
           payload.tgt.algorithm,
         ),
       );
+
       newReq.authenticator = JSON.parse(
         this.cryptoService.decrypt(
           payload.authenticator.ciphertext,
@@ -68,17 +73,20 @@ export class EncryptorInterceptor implements NestInterceptor {
       request.body = newReq;
     }
 
+    // *********** format the response ************ //
     return next.handle().pipe(
-      map((data: Payload) => {
-        const key = this.configService
-          .get<Map<string, string>>([data.realm, 'principals'].join('.'))
-          .get(data.principal);
+      map(async (data: Payload) => {
+        const key = await this.cacheService.get<string>(
+          data.principal + '@' + data.realm,
+        );
         data.challenge.sessionKey = this.cryptoService.genKey(32);
         const ticket: Ticket = {
           ...data.challenge,
           lifetime: this.cryptoService.getLifetime(
             data.lifetime,
-            this.configService.get([data.realm, 'lifetimeInterval'].join('.')),
+            await this.cacheService.get<{ min: number; max: number }>(
+              'interval@' + data.realm,
+            ),
           ),
           ip: data.ip,
           username: data.username,

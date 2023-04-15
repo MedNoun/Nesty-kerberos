@@ -21,7 +21,7 @@ export class Authenticator {
   constructor(public username: string, public timestamp: number) {}
 }
 export class Response {
-  constructor(public ticket: Encryption, public challenge: Encryption) {}
+  constructor(public authenticator: Encryption) {}
 }
 export class Challenge {
   constructor(

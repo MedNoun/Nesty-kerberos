@@ -10,7 +10,6 @@ import { Encryption } from '../types/response';
 
 @Injectable()
 export class CryptoService {
-  constructor(){}
   public encrypt(
     text: Object,
     key: string,
