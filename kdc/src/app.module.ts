@@ -5,7 +5,6 @@ import { AsModule } from './as/as.module';
 import { TgsModule } from './tgs/tgs.module';
 import { CommonModule } from './common/common.module';
 import { ConfigModule } from '@nestjs/config';
-import realm from './common/config/realms';
 import { CacheModule, CacheStore } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-store';
 
@@ -14,7 +13,7 @@ import { redisStore } from 'cache-manager-redis-store';
     AsModule,
     TgsModule,
     CommonModule,
-    ConfigModule.forRoot({ load: [realm], isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true }),
     CacheModule.register({
       isGlobal: true,
       store: redisStore as unknown as CacheStore,

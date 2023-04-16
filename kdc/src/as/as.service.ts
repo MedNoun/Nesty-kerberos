@@ -1,7 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Request1Dto } from './dto/request1.dto';
 import { CryptoService } from 'src/common/crypto/crypto.service';
-import { ConfigService } from '@nestjs/config';
 import { Challenge, Payload } from 'src/common/types/response';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
@@ -9,7 +8,6 @@ import { Cache } from 'cache-manager';
 @Injectable()
 export class AsService {
   constructor(
-    private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
     @Inject(CACHE_MANAGER) private cacheService: Cache,
   ) {}
@@ -27,7 +25,7 @@ export class AsService {
         new Date().getTime(),
         this.cryptoService.getLifetime(
           request.requestedLifetime,
-          this.configService.get([realm, 'lifetimeInterval'].join('.')),
+          await this.cacheService.get<string>('interval' + '@' + realm),
         ),
         '',
       );

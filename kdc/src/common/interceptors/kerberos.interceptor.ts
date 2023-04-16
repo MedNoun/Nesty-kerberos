@@ -30,7 +30,7 @@ class IncomingRequest {
 }
 
 @Injectable()
-export class EncryptorInterceptor implements NestInterceptor {
+export class KerberosInterceptor implements NestInterceptor {
   constructor(
     private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
@@ -53,20 +53,14 @@ export class EncryptorInterceptor implements NestInterceptor {
       const privateKey = await this.cacheService.get<string>('tgs@' + realm);
 
       newReq.tgt = JSON.parse(
-        this.cryptoService.decrypt(
-          payload.tgt.ciphertext,
-          privateKey,
-          payload.tgt.iv,
-          payload.tgt.algorithm,
-        ),
+        this.cryptoService.decrypt(payload.tgt, privateKey, 'hex'),
       );
 
       newReq.authenticator = JSON.parse(
         this.cryptoService.decrypt(
-          payload.authenticator.ciphertext,
+          payload.authenticator,
           newReq.tgt.sessionKey,
-          payload.authenticator.iv,
-          payload.authenticator.algorithm,
+          'hex',
         ),
       );
       newReq.request = payload.request;
@@ -100,19 +94,14 @@ export class EncryptorInterceptor implements NestInterceptor {
         );
         return {
           resp: resp,
-          dec_1: this.cryptoService.decrypt(
-            resp.ticket.ciphertext,
-            key,
-            resp.ticket.iv,
-          ),
-          dec_2: this.cryptoService.decrypt(
-            resp.challenge.ciphertext,
-            data.clientKey ? data.clientKey : data.challenge.sessionKey,
-            resp.challenge.iv,
-          ),
           newReq: this.cryptoService.encrypt(
-            { username: 'mednoun', timestamp: new Date().getTime() },
+            { username: data.username, timestamp: new Date().getTime() },
             data.challenge.sessionKey,
+          ),
+          dec_1: this.cryptoService.decrypt(resp.ticket, key),
+          dec_2: this.cryptoService.decrypt(
+            resp.challenge,
+            data.clientKey ? data.clientKey : data.challenge.sessionKey,
           ),
         };
       }),

@@ -4,18 +4,16 @@ import {
   Ip,
   Param,
   Post,
-  Query,
-  Req,
   UseInterceptors,
 } from '@nestjs/common';
 import { AsService } from './as.service';
 import { Request1Dto } from './dto/request1.dto';
-import { EncryptorInterceptor } from 'src/common/interceptors/encryptor.interceptor';
+import { KerberosInterceptor } from 'src/common/interceptors/kerberos.interceptor';
 
 @Controller('as')
 export class AsController {
   constructor(private readonly asService: AsService) {}
-  @UseInterceptors(EncryptorInterceptor)
+  @UseInterceptors(KerberosInterceptor)
   @Post(':realm')
   public async authenticate(
     @Body() request: Request1Dto,

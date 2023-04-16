@@ -10,7 +10,7 @@ import { Encryption } from '../types/response';
 
 @Injectable()
 export class CryptoService {
-  constructor(){}
+  constructor() {}
   public encrypt(
     text: Object,
     key: string,
@@ -38,22 +38,16 @@ export class CryptoService {
     };
   }
   public decrypt(
-    ciphertext: string,
+    encryption: Encryption,
     key: string,
-    iv: string,
-    algorithm: string = 'aes-256-cbc',
     keyEncoding: BufferEncoding = 'hex',
-    inputEncoding: BufferEncoding = 'base64',
     outputEncoding: BufferEncoding = 'utf8',
   ) {
+    const { ciphertext, iv, algorithm, encoding } = encryption;
     const ivBuf = Buffer.from(iv, keyEncoding);
     const keyBuffer = Buffer.from(key, keyEncoding);
     const decipher = createDecipheriv(algorithm, keyBuffer, ivBuf);
-    const decryption = decipher.update(
-      ciphertext,
-      inputEncoding,
-      outputEncoding,
-    );
+    const decryption = decipher.update(ciphertext, encoding, outputEncoding);
     return decryption + decipher.final(outputEncoding);
   }
   public hash(

@@ -1,13 +1,5 @@
 export class Payload {
-  constructor(
-    public challenge: Challenge,
-    public username: string,
-    public realm: string,
-    public principal: string,
-    public ip: string,
-    public lifetime: number,
-    public clientKey?: string,
-  ) {}
+  constructor(public challenge: Challenge) {}
 }
 export class Encryption {
   constructor(
