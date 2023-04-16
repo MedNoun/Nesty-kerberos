@@ -57,13 +57,6 @@ export class TicketsManagerService {
       request.serviceTicket.lifetime,
       request.serviceTicket.sessionKey,
     );
-    return new Payload(
-      challenge,
-      request.authenticator.username,
-      realm,
-      request.serviceTicket.principal,
-      ip,
-      new Date().getTime(),
-    );
+    return new Payload(challenge);
   }
 }

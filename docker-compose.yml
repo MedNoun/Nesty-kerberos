@@ -7,6 +7,20 @@ services:
       - 6379:6379
     volumes:
       - redis:/data
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: kerberos
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pass123
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
 
 volumes:
   redis:
