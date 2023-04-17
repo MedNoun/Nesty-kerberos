@@ -22,6 +22,7 @@ export class UserService {
   ) {}
   async test() {
     const { group, key } = this.dhService.getPublicKey('modp15', 'hex');
+    // api call in the front
     const newkey = await this.keyExchange({
       username: 'mednoun',
       group: 'modp15',
@@ -45,17 +46,18 @@ export class UserService {
     await this.cacheService.set('dh@' + keyExchange.username, shared, 120000);
     return key;
   }
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, realm: string) {
     const key = await this.cacheService.get<string>(
       'dh@' + createUserDto.username,
     );
     if (!key) {
       throw new HttpException('no key exchange hit /user/dh', 403);
     }
-    const password = this.cryptoService.decrypt(
-      createUserDto.password,
-      key,
-      'hex',
+    const password = this.cryptoService.decrypt(createUserDto.password, key);
+    await this.cacheService.set(
+      createUserDto.username + '@' + realm,
+      password,
+      -1,
     );
     const user = this.userRepository.create({
       username: createUserDto.username,

@@ -6,7 +6,6 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -17,9 +16,12 @@ import { keyExchangeDto } from './dto/keyExchange.dto';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  async create(@Body() createUserDto: CreateUserDto) {
-    return await this.userService.create(createUserDto);
+  @Post(':realm')
+  async create(
+    @Body() createUserDto: CreateUserDto,
+    @Param('realm') realm: string,
+  ) {
+    return await this.userService.create(createUserDto, realm);
   }
   @Get('test')
   test() {
