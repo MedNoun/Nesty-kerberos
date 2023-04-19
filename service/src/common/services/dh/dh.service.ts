@@ -1,6 +1,4 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Inject, Injectable } from '@nestjs/common';
-import { Cache } from 'cache-manager';
+import { Injectable } from '@nestjs/common';
 import {
   BinaryToTextEncoding,
   DiffieHellmanGroup,
@@ -22,7 +20,7 @@ export class DhService {
     group: DiffieHellmanGroup,
     publicKey: string,
     inputEncoding: BinaryToTextEncoding = 'hex',
-    lengthBytes: number = 256 / 4,
+    lengthBytes: number = 256 / 8,
     outputEncoding: BinaryToTextEncoding = 'hex',
   ) {
     return group
