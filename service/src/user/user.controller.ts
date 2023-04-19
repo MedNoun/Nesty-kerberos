@@ -16,6 +16,11 @@ import { keyExchangeDto } from './dto/keyExchange.dto';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+
+  @Post('dh')
+  async keyExchange(@Body() params: keyExchangeDto) {
+    return await this.userService.keyExchange(params);
+  }
   @Post(':realm')
   async create(
     @Body() createUserDto: CreateUserDto,
@@ -27,11 +32,7 @@ export class UserController {
   test() {
     return this.userService.test();
   }
-  @Post('dh')
-  async keyExchange(@Body() params: keyExchangeDto) {
-    return await this.userService.keyExchange(params);
-  }
-
+ 
   @Get()
   findAll() {
     return this.userService.findAll();
