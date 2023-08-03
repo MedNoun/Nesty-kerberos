@@ -1,4 +1,4 @@
-# Project Name - Custom Kerberos Protocol Implementation with NestJS
+# Nesty-kerberos - Custom Kerberos Protocol Implementation with NestJS
 
 ![Kerberos Logo](https://miro.medium.com/v2/resize:fit:700/0*Qeh4qhAIiY1zxjCR.gif)
 
