@@ -65,7 +65,7 @@ POSTGRES_PORT=5432
 POSTGRES_USERNAME=postgres
 POSTGRES_PASSWORD=pass123
 ```
-## Usage
+## Usage
 
 ```bash
 docker-compose -up && cd kdc && npm start && cd ../service && npm start
