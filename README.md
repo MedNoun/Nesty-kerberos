@@ -46,7 +46,7 @@ cd Nesty-kerberos
 ```bash
 cd kdc && npm install && cd service && npm install
 ```
-3. Configuration
+## Configuration
 
 The project requires some configuration settings to run correctly. Create a .env file in the root directory of the project and set the following environment variables:
 ```
@@ -65,7 +65,8 @@ POSTGRES_PORT=5432
 POSTGRES_USERNAME=postgres
 POSTGRES_PASSWORD=pass123
 ```
-4.Run Project
+## Usage
+
 ```bash
 docker-compose -up && cd kdc && npm start && cd ../service && npm start
 ```
