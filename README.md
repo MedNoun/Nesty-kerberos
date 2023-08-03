@@ -20,7 +20,7 @@ Kerberos is a widely-used authentication protocol that provides secure authentic
 ## Features
 
 - Custom Kerberos protocol implementation
-- Two KDC servers for ticket issuance and validation
+- KDC server for ticket issuance and validation
 - Registration server for user authentication and registration
 - PostgreSQL database for storing user credentials
 - Redis caching for efficient ticket management
@@ -31,8 +31,7 @@ Before running this project, ensure you have the following installed:
 
 - Node.js (>=12.x)
 - npm (>=6.x)
-- PostgreSQL (>=11.x) with a database set up
-- Redis (>=5.x)
+- docker-compose
 
 ## Installation
 
