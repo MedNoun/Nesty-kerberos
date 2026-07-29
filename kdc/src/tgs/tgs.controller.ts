@@ -6,14 +6,15 @@ import {
   Post,
   UseInterceptors,
 } from '@nestjs/common';
-import { TgsService } from './tgs.service';
+import { TgsInterceptor } from 'src/common/interceptors/kdc.interceptor';
 import { Request2Dto } from './dto/request2.dto';
-import { KerberosInterceptor } from 'src/common/interceptors/kerberos.interceptor';
+import { TgsService } from './tgs.service';
 
 @Controller('tgs')
 export class TgsController {
   constructor(private readonly tgsService: TgsService) {}
-  @UseInterceptors(KerberosInterceptor)
+
+  @UseInterceptors(TgsInterceptor)
   @Post(':realm')
   async serviceTicket(
     @Body() request: Request2Dto,

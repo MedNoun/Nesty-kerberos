@@ -1,5 +1,4 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
 import {
   CallHandler,
   ExecutionContext,
@@ -7,8 +6,9 @@ import {
   Injectable,
   NestInterceptor,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Cache } from 'cache-manager';
 import { Request } from 'express';
 import { Observable, map } from 'rxjs';
 import { CryptoService } from 'src/common/crypto/crypto.service';
@@ -21,52 +21,65 @@ import {
 } from 'src/common/types/response';
 import { Request3Dto } from 'src/tickets-manager/dto/request3.dto';
 
-class IncomingRequest {
-  serviceTicket: Encryption;
-  authenticator: Encryption;
-}
-
+/**
+ * The application service's half of the nested-encryption scheme: the service
+ * ticket opens under this service's own long-term key, and the session key
+ * inside it opens the client's authenticator.
+ */
 @Injectable()
 export class KerberosInterceptor implements NestInterceptor {
   constructor(
-    private readonly configService: ConfigService,
     private readonly cryptoService: CryptoService,
     @Inject(CACHE_MANAGER) private cacheService: Cache,
   ) {}
-  async intercept(context: ExecutionContext, next: CallHandler) {
-    // *********** format the request ************ //
+
+  public async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<Response>> {
     const request: Request = context.switchToHttp().getRequest();
     const { realm } = request.params;
-    const payload: IncomingRequest = request.body;
-    const newReq: Request3Dto = new Request3Dto();
+    const payload = request.body as {
+      serviceTicket?: Encryption;
+      authenticator?: Encryption;
+    };
+    const principal = process.env.SERVICE_NAME;
     const privateKey = await this.cacheService.get<string>(
-      process.env.SERVICE_NAME + '@' + realm,
+      `${principal}@${realm}`,
     );
+    if (!privateKey) {
+      throw new NotFoundException(`Unknown realm ${realm}`);
+    }
+    const serviceTicket = this.cryptoService.decrypt<Ticket>(
+      payload?.serviceTicket,
+      privateKey,
+    );
+    // Decrypting under our own key already proves the KDC issued this for us.
+    // Asserting it makes the guarantee explicit rather than incidental.
+    if (serviceTicket.principal !== principal) {
+      throw new UnauthorizedException('Ticket was issued for another service');
+    }
+    const authenticator = this.cryptoService.decrypt<Authenticator>(
+      payload?.authenticator,
+      serviceTicket.sessionKey,
+    );
+    const decoded = new Request3Dto();
+    decoded.serviceTicket = serviceTicket;
+    decoded.authenticator = authenticator;
+    request.body = decoded;
 
-    newReq.serviceTicket = JSON.parse(
-      this.cryptoService.decrypt(payload.serviceTicket, privateKey),
-    );
-
-    newReq.authenticator = JSON.parse(
-      this.cryptoService.decrypt(
-        payload.authenticator,
-        newReq.serviceTicket.sessionKey,
-      ),
-    );
-    request.body = newReq;
-
-    // *********** format the response ************ //
-    return next.handle().pipe(
-      map((data: Payload) => {
-        const auth = new Authenticator(
-          data.challenge.principal,
-          new Date().getTime(),
-        );
-        const resp = new Response(
-          this.cryptoService.encrypt(auth, data.challenge.sessionKey),
-        );
-        return resp;
-      }),
-    );
+    return next
+      .handle()
+      .pipe(
+        map(
+          (data: Payload) =>
+            new Response(
+              this.cryptoService.encrypt(
+                data.authenticator,
+                data.challenge.sessionKey,
+              ),
+            ),
+        ),
+      );
   }
 }

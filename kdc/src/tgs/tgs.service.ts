@@ -1,64 +1,59 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ReplayCacheService } from 'src/common/cache/replay-cache.service';
+import { SKEW_MS, TGS_PRINCIPAL } from 'src/common/kerberos.constants';
+import { Challenge, Payload } from 'src/common/types/response';
 import { Request2Dto } from './dto/request2.dto';
-import { Challenge, Payload, Ticket } from 'src/common/types/response';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
 
 @Injectable()
 export class TgsService {
-  constructor(@Inject(CACHE_MANAGER) private cacheService: Cache) {}
-  async generateTicket(
+  constructor(private readonly replayCache: ReplayCacheService) {}
+
+  public async generateTicket(
     request: Request2Dto,
     ip: string,
     realm: string,
   ): Promise<Payload> {
-    if (request.tgt.ip !== ip) {
-      throw new HttpException('Different Source detected', 404);
+    const { tgt, authenticator } = request;
+    if (tgt.principal !== TGS_PRINCIPAL) {
+      throw new UnauthorizedException('Ticket was not issued for the TGS');
     }
-    if (request.tgt.username !== request.authenticator.username) {
-      throw new HttpException('Different Username', 404);
+    if (tgt.ip !== ip) {
+      throw new UnauthorizedException('Different source detected');
     }
-    if (request.tgt.lifetime < new Date().getTime()) {
-      throw new HttpException('Ticket Expired ! ', 404);
+    if (tgt.username !== authenticator.username) {
+      throw new UnauthorizedException('Different username');
     }
-    if (request.authenticator.timestamp - request.tgt.timestamp > 120000) {
-      throw new HttpException(
-        'Replay possibility please reauthenticate ! ',
-        404,
+    if (tgt.lifetime < Date.now()) {
+      throw new UnauthorizedException('Ticket expired');
+    }
+    // Skew is measured against this server's clock. Comparing the authenticator
+    // to the ticket's own issue time, which is what this did, let a captured
+    // authenticator stay valid for the ticket's entire lifetime.
+    if (Math.abs(Date.now() - authenticator.timestamp) > SKEW_MS) {
+      throw new UnauthorizedException(
+        'Authenticator outside the allowed clock skew',
       );
     }
-    const auth = await this.cacheService.get(
-      'tgs_' + request.authenticator.username + '@' + realm,
+    // Keyed on the authenticator itself and held only for as long as one could
+    // still be accepted. Keying it on the username with the ticket's remaining
+    // lifetime as the TTL locked a user out for hours and caught no replays.
+    const replayed = await this.replayCache.isReplay(
+      `replay:${realm}:${TGS_PRINCIPAL}:${authenticator.username}:${authenticator.timestamp}`,
+      SKEW_MS,
     );
-    if (auth) {
-      throw new HttpException(
-        'You already got a ticket use it or reauthenticate after it expires!' +
-          auth,
-        404,
-      );
+    if (replayed) {
+      throw new UnauthorizedException('Authenticator already used');
     }
-    // lets cache the tgt then :
-    await this.cacheService.set(
-      'tgs_' + request.authenticator.username + '@' + realm,
-      request.authenticator,
-      request.tgt.lifetime - new Date().getTime(),
-    );
-
-    // we need to verify whether the authenticator is in the cash or not and put it until lifetime ends. Throw error if found in cache
-    // TODO
-    const challenge: Challenge = new Challenge(
-      request.request.id,
-      new Date().getTime(),
-      request.tgt.lifetime,
-      '',
-    );
-    return new Payload(
+    const challenge = new Challenge(request.request.id, Date.now(), 0, '');
+    return {
       challenge,
-      request.authenticator.username,
+      username: authenticator.username,
       realm,
-      request.request.id,
+      principal: request.request.id,
       ip,
-      request.request.requestedLifetime,
-    );
+      requestedLifetime: request.request.requestedLifetime,
+      clientKey: tgt.sessionKey,
+      maxExpiry: tgt.lifetime,
+    };
   }
 }
