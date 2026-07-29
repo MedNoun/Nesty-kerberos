@@ -1,0 +1,11 @@
+# Secrets. Both app .env files used to be tracked, which is how the Redis and
+# Postgres passwords ended up in the history and in the README.
+.env
+*.env
+.env.*
+!.env.example
+!*.env.example
+
+node_modules/
+dist/
+coverage/
