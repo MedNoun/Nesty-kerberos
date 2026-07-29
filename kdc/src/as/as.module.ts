@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AsService } from './as.service';
-import { AsController } from './as.controller';
 import { CommonModule } from 'src/common/common.module';
+import { AsInterceptor } from 'src/common/interceptors/kdc.interceptor';
+import { AsController } from './as.controller';
+import { AsService } from './as.service';
 
 @Module({
   imports: [CommonModule],
   controllers: [AsController],
-  providers: [AsService],
+  providers: [AsService, AsInterceptor],
 })
 export class AsModule {}
