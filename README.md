@@ -115,6 +115,22 @@ applications and prints each leg.
 (cd service && npm run test:e2e)
 ```
 
+## Secret scanning
+
+This repository committed its Redis and Postgres passwords for two years, so the
+check is wired in twice: a gitleaks pre-commit hook, and a GitHub Actions
+workflow that scans both the full history and the working tree on every push and
+pull request.
+
+```bash
+pip install pre-commit && pre-commit install
+pre-commit run --all-files
+```
+
+`.gitleaksignore` holds the reviewed dismissals, one line per finding, with the
+reason above it. Two entries, both the `nest new` scaffold README's placeholder
+CircleCI badge token.
+
 ## Security properties
 
 - **AES-256-GCM** everywhere, with a fresh 96-bit IV per message and the tag
