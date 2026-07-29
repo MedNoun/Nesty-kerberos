@@ -1,0 +1,15 @@
+# Findings reviewed and dismissed. Each line is a gitleaks fingerprint.
+#
+# kdc/README.md and service/README.md are the untouched `nest new` scaffold
+# READMEs. Line 5 of each is Nest's own CircleCI badge definition, carrying the
+# placeholder token the template ships with, against a badge URL that points at
+# the Nest project's repository rather than this one. It is not a credential and
+# never was one.
+#
+# The offending value is not quoted here: doing so made this file itself a hit.
+09e069abb6dae43353698c67983d834bd11a9ae1:kdc/README.md:generic-api-key:5
+09e069abb6dae43353698c67983d834bd11a9ae1:service/README.md:generic-api-key:5
+
+# The same two lines, as matched by a filesystem scan rather than a git scan.
+kdc/README.md:generic-api-key:5
+service/README.md:generic-api-key:5

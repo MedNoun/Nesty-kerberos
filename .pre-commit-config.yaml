@@ -1,0 +1,11 @@
+# Catch secrets before they leave the machine. This repository committed its
+# Redis and Postgres passwords for two years, so the check earns its place.
+#
+#   pip install pre-commit && pre-commit install
+#   pre-commit run --all-files      # one-off scan
+#   pre-commit autoupdate           # bump the pinned rev
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
