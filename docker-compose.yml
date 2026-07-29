@@ -1,5 +1,10 @@
 # Backing services only. Credentials are interpolated from the root .env, which
 # is gitignored: they used to be written inline here and in the README.
+#
+# The required variables use bare `${VAR:?}` rather than `${VAR:?some message}`.
+# Compose still refuses to start when one is unset, but the prose form put
+# literal words where a value belongs, which secret scanners read as a
+# hardcoded password.
 services:
   redis:
     container_name: cache
