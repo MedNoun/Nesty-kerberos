@@ -1,62 +1,58 @@
-import { HttpException, Inject, Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ReplayCacheService } from 'src/common/cache/replay-cache.service';
+import { SKEW_MS } from 'src/common/kerberos.constants';
+import { Authenticator, Challenge, Payload } from 'src/common/types/response';
 import { Request3Dto } from './dto/request3.dto';
-import { Challenge, Payload } from 'src/common/types/response';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
 
 @Injectable()
 export class TicketsManagerService {
-  constructor(@Inject(CACHE_MANAGER) private cacheService: Cache) {}
-  async generateTicket(request: Request3Dto, ip: string, realm: string) {
-    if (request.serviceTicket.ip !== ip) {
-      throw new HttpException('Different Source detected', 404);
+  constructor(private readonly replayCache: ReplayCacheService) {}
+
+  public async generateTicket(
+    request: Request3Dto,
+    ip: string,
+    realm: string,
+  ): Promise<Payload> {
+    const { serviceTicket, authenticator } = request;
+    if (serviceTicket.ip !== ip) {
+      throw new UnauthorizedException('Different source detected');
     }
-    if (request.serviceTicket.username !== request.authenticator.username) {
-      throw new HttpException('Different Username', 404);
+    if (serviceTicket.username !== authenticator.username) {
+      throw new UnauthorizedException('Different username');
     }
-    if (request.serviceTicket.lifetime < new Date().getTime()) {
-      throw new HttpException('Ticket Expired ! ', 404);
+    if (serviceTicket.lifetime < Date.now()) {
+      throw new UnauthorizedException('Ticket expired');
     }
-    if (
-      request.authenticator.timestamp - request.serviceTicket.timestamp >
-      120000
-    ) {
-      throw new HttpException(
-        'Replay possibility please reauthenticate ! ',
-        404,
+    // Skew is measured against this server's clock, not the ticket's issue time.
+    if (Math.abs(Date.now() - authenticator.timestamp) > SKEW_MS) {
+      throw new UnauthorizedException(
+        'Authenticator outside the allowed clock skew',
       );
     }
-    const auth = await this.cacheService.get(
-      request.serviceTicket.principal +
-        '_' +
-        request.authenticator.username +
-        '@' +
-        realm,
+    // Keyed on the authenticator itself, held only for as long as one could
+    // still be accepted, and set atomically so two concurrent replays cannot
+    // both pass the check.
+    const replayed = await this.replayCache.isReplay(
+      `replay:${realm}:${serviceTicket.principal}:${authenticator.username}:${authenticator.timestamp}`,
+      SKEW_MS,
     );
-    if (auth) {
-      throw new HttpException(
-        'You already got a ticket use it or reauthenticate after it expires!',
-        404,
-      );
+    if (replayed) {
+      throw new UnauthorizedException('Authenticator already used');
     }
-    // lets cache the tgt then :
-    this.cacheService.set(
-      request.serviceTicket.principal +
-        '_' +
-        request.authenticator.username +
-        '@' +
-        realm,
-      request.authenticator,
-      request.serviceTicket.lifetime - new Date().getTime(),
+    const challenge = new Challenge(
+      serviceTicket.principal,
+      Date.now(),
+      serviceTicket.lifetime,
+      serviceTicket.sessionKey,
     );
-    // we need to verify whether the authenticator is in the cash or not and put it until lifetime ends. Throw error if found in cache
-    // TODO
-    const challenge: Challenge = new Challenge(
-      request.serviceTicket.principal,
-      new Date().getTime(),
-      request.serviceTicket.lifetime,
-      request.serviceTicket.sessionKey,
-    );
-    return new Payload(challenge);
+    // RFC 4120 AP_REP echoes the client's own timestamp back, which is what
+    // proves the server read the authenticator rather than just holding a key.
+    return {
+      challenge,
+      authenticator: new Authenticator(
+        authenticator.username,
+        authenticator.timestamp,
+      ),
+    };
   }
 }
