@@ -1,27 +1,37 @@
+# Backing services only. Credentials are interpolated from the root .env, which
+# is gitignored: they used to be written inline here and in the README.
 services:
   redis:
     container_name: cache
-    image: redis
-    command: redis-server --save 20 1 --loglevel warning --requirepass REDACTED_REDIS_PASSWORD
+    # Images are pinned: unpinned `postgres` resolved to 18, which moved its
+    # data directory and left this file unable to start at all.
+    image: redis:8
+    command: redis-server --save 20 1 --loglevel warning --requirepass ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    # Host ports come from .env so a machine already running Postgres or
+    # something on 8080 can move them without editing this file.
     ports:
-      - 6379:6379
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis:/data
   db:
-    image: postgres
+    image: postgres:16
     restart: always
     ports:
-      - '5432:5432'
+      - '${POSTGRES_PORT:-5432}:5432'
     environment:
-      POSTGRES_DB: kerberos
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: REDACTED_POSTGRES_PASSWORD
+      POSTGRES_DB: ${POSTGRES_DB:-kerberos}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql/data
   adminer:
-    image: adminer
+    image: adminer:4
     restart: always
     ports:
-      - 8080:8080
+      - '${ADMINER_PORT:-8080}:8080'
 
 volumes:
   redis:
+    driver: local
+  postgres:
     driver: local
